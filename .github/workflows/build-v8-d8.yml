@@ -23,14 +23,14 @@ jobs:
           cmd /c "fetch v8"
           cd v8
           git checkout branch-heads/14.8
-          cmd /c "gclient sync -D --force"
+          gclient sync -D --force
 
       # (3) 只编译 d8
       - name: Build d8 only
         run: |
           cd v8/v8
-          cmd /c "gn gen out/x64.release --args='is_debug=false target_cpu=\"x64\"'"
-          cmd /c "ninja -j 2 -C out/x64.release d8"
+          gn gen out/x64.release --args='is_debug=false target_cpu="x64"'
+          ninja -j 2 -C out/x64.release d8
 
       # (4) 上传 Windows 版 d8
       - name: Upload d8.exe
