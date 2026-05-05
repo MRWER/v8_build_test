@@ -1,37 +1,38 @@
-name: Build V8 d8 (Linux x64)
+name: Build V8 d8 (Windows x64)
 
 on:
-  workflow_dispatch:  # 允许你在 GitHub Actions 页面手动触发
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
-      # 1. 安装 Google 的 depot_tools，并添加到 PATH
+      # (1) 下载 Google 的 depot_tools
       - name: Install depot_tools
         run: |
-          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-          echo "$(pwd)/depot_tools" >> $GITHUB_PATH
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ${{ github.workspace }}/depot_tools
+          echo "${{ github.workspace }}/depot_tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      # 2. 下载 V8 源码（稳定的 branch-heads/14.8）
+      # (2) 拉取 V8 稳定版源码
       - name: Fetch V8 source
         run: |
-          mkdir v8 && cd v8
-          fetch v8
+          mkdir v8
+          cd v8
+          cmd /c "fetch v8"
           cd v8
           git checkout branch-heads/14.8
-          gclient sync -D  # -D 删除不需要的依赖
+          cmd /c "gclient sync -D"
 
-      # 3. 生成构建规则，只编译 d8
+      # (3) 只编译 d8
       - name: Build d8 only
         run: |
           cd v8/v8
-          gn gen out/x64.release --args='is_debug=false target_cpu="x64"'
-          ninja -C out/x64.release d8
+          cmd /c "gn gen out/x64.release --args='is_debug=false target_cpu=\"x64\"'"
+          cmd /c "ninja -C out/x64.release d8"
 
-      # 4. 上传编译产物 d8
-      - name: Upload d8 binary
+      # (4) 上传 Windows 版 d8
+      - name: Upload d8.exe
         uses: actions/upload-artifact@v4
         with:
-          name: d8-linux-x64
-          path: v8/v8/out/x64.release/d8
+          name: d8-windows-x64
+          path: v8/v8/out/x64.release/d8.exe
