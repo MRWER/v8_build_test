@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      DEPOT_TOOLS_WIN_TOOLCHAIN: 0   # 关键：让 depot_tools 使用本地 VS 工具链
     steps:
       # (1) 下载 Google 的 depot_tools
       - name: Install depot_tools
@@ -21,14 +23,14 @@ jobs:
           cmd /c "fetch v8"
           cd v8
           git checkout branch-heads/14.8
-          cmd /c "gclient sync -D"
+          cmd /c "gclient sync -D --force"
 
       # (3) 只编译 d8
       - name: Build d8 only
         run: |
           cd v8/v8
           cmd /c "gn gen out/x64.release --args='is_debug=false target_cpu=\"x64\"'"
-          cmd /c "ninja -C out/x64.release d8"
+          cmd /c "ninja -j 2 -C out/x64.release d8"
 
       # (4) 上传 Windows 版 d8
       - name: Upload d8.exe
