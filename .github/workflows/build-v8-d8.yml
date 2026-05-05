@@ -29,7 +29,10 @@ jobs:
       - name: Build d8 only
         run: |
           cd v8/v8
-          gn gen out/x64.release --args='is_debug=false target_cpu="x64"'
+          mkdir out\x64.release -Force
+          "is_debug = false" | Out-File -Encoding ascii out\x64.release\args.gn
+          "target_cpu = `"x64`"" | Out-File -Encoding ascii -Append out\x64.release\args.gn
+          gn gen out/x64.release
           ninja -j 2 -C out/x64.release d8
 
       # (4) 上传 Windows 版 d8
