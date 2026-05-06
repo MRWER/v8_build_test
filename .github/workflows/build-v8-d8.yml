@@ -1,4 +1,4 @@
-name: Build V8 d8 (Windows x64)
+name: Build V8 d8 (Windows x64 Standalone)
 
 on:
   workflow_dispatch:
@@ -7,15 +7,16 @@ jobs:
   build:
     runs-on: windows-latest
     env:
-      DEPOT_TOOLS_WIN_TOOLCHAIN: 0   # 关键：让 depot_tools 使用本地 VS 工具链
+      DEPOT_TOOLS_WIN_TOOLCHAIN: 0
+
     steps:
-      # (1) 下载 Google 的 depot_tools
+      # (1) 下载 depot_tools
       - name: Install depot_tools
         run: |
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ${{ github.workspace }}/depot_tools
           echo "${{ github.workspace }}/depot_tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      # (2) 拉取 V8 稳定版源码
+      # (2) 拉取 V8 源码
       - name: Fetch V8 source
         run: |
           mkdir v8
@@ -25,19 +26,45 @@ jobs:
           git checkout branch-heads/14.8
           gclient sync -D --force
 
-      # (3) 只编译 d8
-      - name: Build d8 only
+      # (3) 编译 d8（静态链接所有依赖，生成独立可执行文件）
+      - name: Build d8 (fully static)
         run: |
           cd v8/v8
           mkdir out\x64.release -Force
-          "is_debug = false" | Out-File -Encoding ascii out\x64.release\args.gn
-          "target_cpu = `"x64`"" | Out-File -Encoding ascii -Append out\x64.release\args.gn
+
+          # 写入 args.gn
+          # is_component_build=false       -> 静态链接 V8 各组件，不生成 .dll
+          # use_custom_libcxx=false        -> 不使用自带 libc++（Windows 不需要）
+          # v8_use_external_startup_data=false -> 把 snapshot_blob.bin 编译进 exe，不依赖外部文件
+          # v8_enable_i18n_support=false   -> 关闭 ICU 国际化，消除对 icudtl.dat 的依赖
+          # treat_warnings_as_errors=false -> 避免因警告中断编译
+          @"
+          is_debug = false
+          target_cpu = "x64"
+          is_component_build = false
+          use_custom_libcxx = false
+          v8_use_external_startup_data = false
+          v8_enable_i18n_support = false
+          treat_warnings_as_errors = false
+          "@ | Out-File -Encoding ascii out\x64.release\args.gn
+
           gn gen out/x64.release
           ninja -j 2 -C out/x64.release d8
 
-      # (4) 上传 Windows 版 d8
-      - name: Upload d8.exe
-        uses: actions/upload-artifact@v7.0.1
+      # (4) 收集文件并打包
+      # v8_enable_i18n_support=false 且 v8_use_external_startup_data=false 后
+      # 理论上只需要 d8.exe 本身，但仍把同目录 .bin/.dat 一起收集以防万一
+      - name: Collect artifacts
+        run: |
+          mkdir dist
+          Copy-Item v8/v8/out/x64.release/d8.exe dist/
+          # 如果存在额外数据文件也一并收录（通常因上面的 args.gn 已不需要）
+          Get-ChildItem v8/v8/out/x64.release/ -Filter "*.bin" | Copy-Item -Destination dist/ -ErrorAction SilentlyContinue
+          Get-ChildItem v8/v8/out/x64.release/ -Filter "*.dat" | Copy-Item -Destination dist/ -ErrorAction SilentlyContinue
+
+      # (5) 上传产物（整个 dist 目录，含 d8.exe 及所有数据文件）
+      - name: Upload d8 standalone package
+        uses: actions/upload-artifact@v7
         with:
-          name: d8-windows-x64
-          path: v8/v8/out/x64.release/d8.exe
+          name: d8-windows-x64-standalone
+          path: dist/
