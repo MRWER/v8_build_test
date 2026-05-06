@@ -34,7 +34,7 @@ jobs:
 
           # 写入 args.gn
           # is_component_build=false       -> 静态链接 V8 各组件，不生成 .dll
-          # use_custom_libcxx=false        -> 不使用自带 libc++（Windows 不需要）
+          # v8_enable_sandbox=false        -> 禁用沙箱，个人使用无影响
           # v8_use_external_startup_data=false -> 把 snapshot_blob.bin 编译进 exe，不依赖外部文件
           # v8_enable_i18n_support=false   -> 关闭 ICU 国际化，消除对 icudtl.dat 的依赖
           # treat_warnings_as_errors=false -> 避免因警告中断编译
@@ -42,7 +42,7 @@ jobs:
           is_debug = false
           target_cpu = "x64"
           is_component_build = false
-          use_custom_libcxx = false
+          v8_enable_sandbox = false
           v8_use_external_startup_data = false
           v8_enable_i18n_support = false
           treat_warnings_as_errors = false
